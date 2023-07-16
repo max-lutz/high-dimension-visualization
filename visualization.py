@@ -124,3 +124,18 @@ ROW = 1
 title_spacer1, title, title_spacer_2 = st.columns((.1, ROW, .1))
 with title:
     st.title('High-dimensional visualization tool')
+
+
+st.write("")
+dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
+                                          'Diabetes dataset', 'Wine dataset', 'Load my own dataset'])
+df = load_dataset(dataset)
+
+st.sidebar.header('Select feature to predict')
+_, cat_cols, _, _, _ = split_columns(df)
+target_list = [x for x in df.columns.to_list() if x in cat_cols]
+target_list.reverse()
+target_selected = st.sidebar.selectbox('Predict', target_list)
+
+X = df.drop(columns=target_selected)
+Y = df[target_selected].values.ravel()
