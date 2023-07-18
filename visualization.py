@@ -10,8 +10,9 @@ from sklearn.impute import SimpleImputer
 from sklearn.feature_extraction.text import CountVectorizer, TfidfVectorizer
 from sklearn.pipeline import make_pipeline, Pipeline
 from sklearn.compose import make_column_transformer
+from sklearn.preprocessing import FunctionTransformer
 from sklearn.decomposition import PCA
-from sklearn.discriminant_analysis import LinearDiscriminantAnalysis as LDA
+from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import KernelPCA, TruncatedSVD
 from sklearn.datasets import load_iris, load_diabetes, load_wine
 
@@ -58,11 +59,11 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'PCA':
         return PCA(n_components=hyperparameters['n_components'])
     if algorithm == 'LDA':
-        return LDA(solver=hyperparameters['solver'], n_components=hyperparameters['n_components'])
+        return LinearDiscriminantAnalysis(solver=hyperparameters['solver'], n_components=hyperparameters['n_components'])
     if algorithm == 'Kernel PCA':
         return KernelPCA(n_components=hyperparameters['n_components'], kernel=hyperparameters['kernel'])
     if algorithm == 'Truncated SVD':
-        return TruncatedSVD(n_components=hyperparameters['n_components'])
+        return TruncatedSVD(n_components=hyperparameters['n_components'], algorithm=hyperparameters['solver'])
 
 
 def split_columns(df, drop_cols=[]):
@@ -202,13 +203,16 @@ with row1_2:
 dim = preprocessing.fit_transform(X).shape[1]
 if (dim > 2):
     st.sidebar.title('Dimension reduction')
-    dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['Kernel PCA'])
+    dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['Kernel PCA', 'Truncated SVD'])
 
     hyperparameters_dim_reduc = {}
+    hyperparameters_dim_reduc['n_components'] = 2
     if (dimension_reduction_algorithm == 'Kernel PCA'):
-        hyperparameters_dim_reduc['n_components'] = 2
         hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
             'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+    if (dimension_reduction_algorithm == 'Truncated SVD'):
+        hyperparameters_dim_reduc['solver'] = st.sidebar.selectbox(
+            'Solver (default = randomized)', ['randomized', 'arpack'])
 else:
     st.sidebar.title('Dimension reduction')
     dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
@@ -219,7 +223,7 @@ dimension_reduction_pipeline = Pipeline([
     ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
 ])
 
-dimension_reduction_pipeline.fit(X)
+dimension_reduction_pipeline.fit(X, Y)
 X_reduced = pd.DataFrame(dimension_reduction_pipeline.transform(X))
 X_reduced.columns = [f"component {i+1}" for i in range(len(X_reduced.columns))]
 X_reduced['target'] = Y
