@@ -139,3 +139,63 @@ target_selected = st.sidebar.selectbox('Predict', target_list)
 
 X = df.drop(columns=target_selected)
 Y = df[target_selected].values.ravel()
+
+drop_cols = []
+num_cols, cat_cols, text_cols, num_cols_missing, cat_cols_missing = split_columns(X, drop_cols)
+
+# create new lists for columns with missing elements
+for col in X.columns:
+    if (col in num_cols and X[col].isna().sum() > 0):
+        num_cols.remove(col)
+        num_cols_missing.append(col)
+    if (col in cat_cols and X[col].isna().sum() > 0):
+        cat_cols.remove(col)
+        cat_cols_missing.append(col)
+
+# combine text columns in one new column because countVectorizer does not accept multiple columns
+text_cols_original = text_cols
+if (len(text_cols) != 0):
+    X['text'] = X[text_cols].astype(str).agg(' '.join, axis=1)
+    for cols in text_cols:
+        drop_cols.append(cols)
+    text_cols = "text"
+
+
+missing_cat_pipeline = make_pipeline(SimpleImputer(strategy='most_frequent', missing_values=np.nan))
+missing_cat_pipeline.steps.append(('encoding', OneHotEncoder(handle_unknown='ignore')))
+
+missing_num_pipeline = make_pipeline(SimpleImputer(strategy='median', missing_values=np.nan))
+missing_num_pipeline.steps.append(('scaling', StandardScaler()))
+
+# need to make two preprocessing pipeline too handle the case encoding without imputer...
+preprocessing = make_column_transformer(
+    (missing_cat_pipeline, cat_cols_missing),
+    (missing_num_pipeline, num_cols_missing),
+
+    (OneHotEncoder(handle_unknown='ignore'), cat_cols),
+    (CountVectorizer(), text_cols),
+    (StandardScaler(), num_cols)
+)
+
+st.header('Preprocessing')
+
+X_preprocessed = preprocessing.fit_transform(X)
+row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW, SPACER, ROW, SPACER/10))
+with row1_1:
+    st.header('Original dataset')
+    st.text(f'Original dataframe has shape: {X.shape}')
+    st.write(df.head(5))
+
+with row1_2:
+
+    st.header('Preprocessed dataset')
+    display_dataframe = True
+    try:
+        X_preprocessed = pd.DataFrame(X_preprocessed)
+    except:
+        display_dataframe = False
+    if (X_preprocessed.shape[1] < 100 and display_dataframe):
+        st.text(f'Processed dataframe has shape: {X_preprocessed.shape}')
+        st.write(X_preprocessed.head(5))
+    else:
+        st.text(f'Processed dataframe is too big or too sparse to display, shape: {X_preprocessed.shape}')
