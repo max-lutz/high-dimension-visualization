@@ -7,7 +7,7 @@ The app automaticalle preprocess the datasets into a high-dimensional dataset.
 
 You can then choose the way to reduce the dimensions and visualize the result.
 
-Access app : https://high-dimension-visualization.streamlit.app/
+Access app : https://high-dimension-visualization-tool.streamlit.app/
 
 
 How to use this reporitory:
