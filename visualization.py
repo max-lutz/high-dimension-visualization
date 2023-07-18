@@ -1,6 +1,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
 import os
 
 from sklearn.preprocessing import OrdinalEncoder, OneHotEncoder, StandardScaler, MinMaxScaler, RobustScaler
@@ -56,7 +58,7 @@ def get_dim_reduc_algo(algorithm, hyperparameters):
     if algorithm == 'PCA':
         return PCA(n_components=hyperparameters['n_components'])
     if algorithm == 'LDA':
-        return LDA(solver=hyperparameters['solver'])
+        return LDA(solver=hyperparameters['solver'], n_components=hyperparameters['n_components'])
     if algorithm == 'Kernel PCA':
         return KernelPCA(n_components=hyperparameters['n_components'], kernel=hyperparameters['kernel'])
     if algorithm == 'Truncated SVD':
@@ -100,9 +102,6 @@ def load_dataset(dataset):
     elif (dataset == 'Iris dataset'):
         df = load_iris(as_frame=True).data
         df["target"] = load_iris(as_frame=True).target
-    elif (dataset == 'Diabetes dataset'):
-        df = load_diabetes(as_frame=True).data
-        df["target"] = load_diabetes(as_frame=True).target
     elif (dataset == 'Wine dataset'):
         df = load_wine(as_frame=True).data
         df["target"] = load_wine(as_frame=True).target
@@ -128,7 +127,7 @@ with title:
 
 st.write("")
 dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
-                                          'Diabetes dataset', 'Wine dataset', 'Load my own dataset'])
+                                          'Wine dataset', 'Load my own dataset'])
 df = load_dataset(dataset)
 
 st.sidebar.header('Select feature to predict')
@@ -178,24 +177,61 @@ preprocessing = make_column_transformer(
 )
 
 st.header('Preprocessing')
-
 X_preprocessed = preprocessing.fit_transform(X)
 row1_spacer1, row1_1, row1_spacer2, row1_2, row1_spacer3 = st.columns((SPACER/10, ROW, SPACER, ROW, SPACER/10))
 with row1_1:
     st.header('Original dataset')
     st.text(f'Original dataframe has shape: {X.shape}')
-    st.write(df.head(5))
+    st.write(df)
 
 with row1_2:
 
     st.header('Preprocessed dataset')
     display_dataframe = True
     try:
-        X_preprocessed = pd.DataFrame(X_preprocessed)
+        pd.DataFrame(X_preprocessed)
     except:
         display_dataframe = False
     if (X_preprocessed.shape[1] < 100 and display_dataframe):
         st.text(f'Processed dataframe has shape: {X_preprocessed.shape}')
-        st.write(X_preprocessed.head(5))
+        st.write(X_preprocessed)
     else:
-        st.text(f'Processed dataframe is too big or too sparse to display, shape: {X_preprocessed.shape}')
+        st.text(f'Processed dataframe cannot be displayed, shape: {X_preprocessed.shape}')
+
+
+dim = preprocessing.fit_transform(X).shape[1]
+if (dim > 2):
+    st.sidebar.title('Dimension reduction')
+    dimension_reduction_algorithm = st.sidebar.selectbox('Algorithm', ['Kernel PCA'])
+
+    hyperparameters_dim_reduc = {}
+    if (dimension_reduction_algorithm == 'Kernel PCA'):
+        hyperparameters_dim_reduc['n_components'] = 2
+        hyperparameters_dim_reduc['kernel'] = st.sidebar.selectbox(
+            'Kernel (default = linear)', ['linear', 'poly', 'rbf', 'sigmoid', 'cosine'])
+else:
+    st.sidebar.title('Dimension reduction')
+    dimension_reduction_algorithm = st.sidebar.selectbox('Number of features too low', ['None'])
+    hyperparameters_dim_reduc = {}
+
+dimension_reduction_pipeline = Pipeline([
+    ('preprocessing', preprocessing),
+    ('dimension reduction', get_dim_reduc_algo(dimension_reduction_algorithm, hyperparameters_dim_reduc))
+])
+
+dimension_reduction_pipeline.fit(X)
+X_reduced = pd.DataFrame(dimension_reduction_pipeline.transform(X))
+X_reduced.columns = [f"component {i+1}" for i in range(len(X_reduced.columns))]
+X_reduced['target'] = Y
+
+
+if (len(X_reduced.columns) == 3):
+    fig, ax = plt.subplots(figsize=(8, 4))
+    ax.set_title('Dataset with reduced dimensions')
+    sns.scatterplot(x='component 1', y='component 2', data=X_reduced, hue='target', ax=ax)
+    st.pyplot(fig)
+
+# if (len(X_reduced.columns) == 4):
+#     fig = px.scatter_3d(X_reduced, x='component 1', y='component 2', z='component 3',
+#                         symbol='target', color='target', width=800, height=400)
+#     st.plotly_chart(fig, use_container_width=True)
