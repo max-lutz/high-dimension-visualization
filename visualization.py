@@ -125,6 +125,16 @@ title_spacer1, title, title_spacer_2 = st.columns((.1, ROW, .1))
 with title:
     st.title('High-dimensional visualization tool')
 
+title_spacer2, subtitle, title_spacer_2 = st.columns((0.16, ROW, 0.7))
+with subtitle:
+    st.write("""
+            A tool to display high dimensional datasets as 2D and 3D graphs. 
+            Test the app with the base datasets or upload your own.
+            The app automatically preprocess the dataset into a high-dimensional dataset.
+            You can then choose the way to reduce the dimensions and visualize the result.
+            """)
+    st.write("")
+
 
 st.write("")
 dataset = st.selectbox('Select dataset', ['Titanic dataset', 'Heart disease dataset', 'Iris dataset',
